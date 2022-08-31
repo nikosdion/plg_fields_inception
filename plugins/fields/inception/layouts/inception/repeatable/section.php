@@ -43,6 +43,16 @@ extract($displayData);
     <?php endif; ?>
 
 <?php foreach ($form->getGroup('') as $field) : ?>
-    <?php echo $field->renderField(); ?>
+	<?php
+		$refObj = new ReflectionObject($field);
+		$refGetLabel = $refObj->getMethod('getLabel');
+		$refGetLabel->setAccessible(true);
+		$refGetInput = $refObj->getMethod('getInput');
+		$refGetInput->setAccessible(true);
+	?>
+	<h3><?= $refGetLabel->invoke($field) ?></h3>
+    <div>
+		<?= $refGetInput->invoke($field) ?>
+	</div>
 <?php endforeach; ?>
 </div>
