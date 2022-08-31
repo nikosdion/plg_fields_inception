@@ -1,4 +1,7 @@
 <?php
+
+use Joomla\CMS\Layout\FileLayout;
+
 /**
  * @copyright (C) 2022 Nicholas K. Dionysopoulos
  * @license   GNU General Public License version 2 or later; see LICENSE.txt
@@ -14,5 +17,16 @@ class JFormFieldInception extends JFormFieldSubform
 	 * @var    string
 	 */
 	protected $type = 'Inception';
+
+	protected function getLayoutPaths()
+	{
+		return array_merge(
+			parent::getLayoutPaths(),
+			[
+				__DIR__ . '/../layouts'
+			]
+		);
+	}
+
 
 }

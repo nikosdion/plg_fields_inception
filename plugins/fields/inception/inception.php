@@ -176,7 +176,7 @@ class PlgFieldsInception extends FieldsPlugin
 		if ($field_params->get('repeat', '1') == '1')
 		{
 			$parent_field->setAttribute('multiple', 'true');
-			$parent_field->setAttribute('layout', 'joomla.form.field.subform.repeatable-table');
+			$parent_field->setAttribute('layout', 'inception.repeatable-table');
 		}
 
 		// Create a child 'form' DOMElement under the field[type=subform] element.
@@ -201,7 +201,7 @@ class PlgFieldsInception extends FieldsPlugin
 		// If we have 5 or more of them, use the `repeatable` layout instead of the `repeatable-table`
 		if (!$inception || count($subfields) >= 5)
 		{
-			$parent_field->setAttribute('layout', 'joomla.form.field.subform.repeatable');
+			$parent_field->setAttribute('layout', 'inception.repeatable');
 		}
 
 		// Iterate over the sub fields to call prepareDom on each of those sub-fields
