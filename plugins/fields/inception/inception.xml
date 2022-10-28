@@ -20,4 +20,9 @@
         <language tag="en-GB">en-GB/plg_fields_inception.ini</language>
         <language tag="en-GB">en-GB/plg_fields_inception.sys.ini</language>
     </languages>
+    <updateservers>
+        <server type="extension" priority="1" name="Inception Field Updates">
+            https://raw.githubusercontent.com/nikosdion/plg_fields_inception/main/update/plg_fields_inception.xml
+        </server>
+    </updateservers>
 </extension>
