@@ -1,6 +1,7 @@
-# Inception! — Nested Subform Custom fields for Joomla! 4
+# <img src="./logo/spinning-top-2.svg" width="32" alt="Spinning top logo by Skoll at game-icons.net"> Inception! Form Field
 
-A custom field plugin for nested subforms in Joomla! 4
+A custom field plugin for nested subforms in Joomla! 4 
+
 Copyright (C) 2022  Nicholas K. Dionysopoulos
 
 This program is free software; you can redistribute it and/or modify
@@ -63,6 +64,6 @@ Now it's just a matter of creating template overrides for the article list and s
 
 With a bit of love from [d2 Content](https://extensions.joomla.org/extension/d2-content/) we can even have a rockstar backend experience for our aspiring food blogger.
 
-Joomla can do everything. All it takes is a little bit of creativity on your part.
+Joomla can do everything. All it takes is a bit of creativity on your part.
 
 Enjoy!
