@@ -12,14 +12,14 @@ namespace Joomla\Plugin\Fields\Inception\Plugin;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
-use Joomla\CMS\Factory;
+use Joomla\CMS\Event\GenericEvent;
 use Joomla\CMS\Filesystem\Folder;
 use Joomla\CMS\Form\Form;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Plugin\PluginHelper;
 use Joomla\Component\Fields\Administrator\Helper\FieldsHelper;
-use stdClass;
+use Joomla\Registry\Registry;
 
 defined('_JEXEC') or die;
 
@@ -28,103 +28,28 @@ defined('_JEXEC') or die;
  *
  * @since  1.0.0
  */
-class InceptionPlugin extends CMSPlugin
+final class InceptionPlugin extends CMSPlugin
 {
 	/**
-	 * Array to do a fast in-memory caching of all custom field items.
+	 * Cache of custom field items.
 	 *
 	 * @since 1.0.0
 	 * @var   array
 	 *
 	 */
-	protected static $customFieldsCache = null;
+	private static $customFieldsCache = null;
 
 	/**
-	 * Two-dimensional array to hold to do a fast in-memory caching of rendered
-	 * subfield values.
+	 * Cache of rendered subfield values.
 	 *
 	 * @since 1.0.0
 	 * @var   array
 	 *
 	 */
-	protected $renderCache = [];
+	private $renderCache = [];
 
 	/**
-	 * Returns the custom fields types.
-	 *
-	 * @return  string[][]
-	 *
-	 * @since   1.0.1
-	 */
-	public function onCustomFieldsGetTypes()
-	{
-		// Cache filesystem access / checks
-		static $types_cache = array();
-
-		if (isset($types_cache[$this->_type . $this->_name])) {
-			return $types_cache[$this->_type . $this->_name];
-		}
-
-		$this->loadLanguage();
-
-		$types = array();
-
-		// The root of the plugin
-		$root = JPATH_PLUGINS . '/' . $this->_type . '/' . $this->_name;
-
-		foreach (Folder::files($root . '/tmpl', '.php') as $layout) {
-			// Strip the extension
-			$layout = str_replace('.php', '', $layout);
-
-			// The data array
-			$data = array();
-
-			// The language key
-			$key = strtoupper($layout);
-
-			if ($key != strtoupper($this->_name)) {
-				$key = strtoupper($this->_name) . '_' . $layout;
-			}
-
-			// Needed attributes
-			$data['type'] = $layout;
-
-			if ($this->getApplication()->getLanguage()->hasKey('PLG_FIELDS_' . $key . '_LABEL')) {
-				$data['label'] = Text::sprintf('PLG_FIELDS_' . $key . '_LABEL', strtolower($key));
-
-				// Fix wrongly set parentheses in RTL languages
-				if ($this->getApplication()->getLanguage()->isRtl()) {
-					$data['label'] = $data['label'] . '&#x200E;';
-				}
-			} else {
-				$data['label'] = $key;
-			}
-
-			$path = $root . '/fields';
-
-			// Add the path when it exists
-			if (file_exists($path)) {
-				$data['path'] = $path;
-			}
-
-			$path = $root . '/rules';
-
-			// Add the path when it exists
-			if (file_exists($path)) {
-				$data['rules'] = $path;
-			}
-
-			$types[] = $data;
-		}
-
-		// Add to cache and return the data
-		$types_cache[$this->_type . $this->_name] = $types;
-
-		return $types;
-	}
-
-	/**
-	 * Handles the onContentPrepareForm event. Adds form definitions to relevant forms.
+	 * Adds form definitions to relevant forms.
 	 *
 	 * @param   Form          $form  The form to manipulate
 	 * @param   array|object  $data  The data of the form
@@ -132,9 +57,9 @@ class InceptionPlugin extends CMSPlugin
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function onContentPrepareForm(Form $form, $data)
+	public function onContentPrepareForm(Form $form, $data): void
 	{
-		// Get the path to our own form definition (basically ./params/inception.xml)
+		// Get the path to our own form definition (basically ./src/params/inception.xml)
 		$path = $this->getFormPath($form, $data);
 
 		if ($path === null)
@@ -186,17 +111,16 @@ class InceptionPlugin extends CMSPlugin
 	}
 
 	/**
-	 * Manipulates the $field->value before the field is being passed to
-	 * onCustomFieldsPrepareField.
+	 * Manipulates the value before the field is passed to onCustomFieldsPrepareField.
 	 *
-	 * @param   string    $context  The context
-	 * @param   object    $item     The item
-	 * @param   stdClass  $field    The field
+	 * @param   string  $context  The context
+	 * @param   object  $item     The item
+	 * @param   object  $field    The field
 	 *
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function onCustomFieldsBeforePrepareField($context, $item, $field)
+	public function onCustomFieldsBeforePrepareField(string $context, object $item, object $field): void
 	{
 		// Check if the field should be processed by us
 		if (!$this->isTypeSupported($field->type))
@@ -215,20 +139,102 @@ class InceptionPlugin extends CMSPlugin
 	}
 
 	/**
-	 * Returns a DOMElement which is the child of $parent and represents
-	 * the form XML definition for this field.
+	 * Returns the custom fields types.
 	 *
-	 * @param   stdClass    $field   The field
+	 * @return  string[][]
+	 *
+	 * @since   1.0.1
+	 */
+	public function onCustomFieldsGetTypes(): array
+	{
+		// Cache filesystem access / checks
+		static $types_cache = [];
+
+		if (isset($types_cache[$this->_type . $this->_name]))
+		{
+			return $types_cache[$this->_type . $this->_name];
+		}
+
+		$this->loadLanguage();
+
+		$types = [];
+
+		// The root of the plugin
+		$root = JPATH_PLUGINS . '/' . $this->_type . '/' . $this->_name;
+
+		foreach (Folder::files($root . '/tmpl', '.php') as $layout)
+		{
+			// Strip the extension
+			$layout = str_replace('.php', '', $layout);
+
+			// The data array
+			$data = [];
+
+			// The language key
+			$key = strtoupper($layout);
+
+			if ($key != strtoupper($this->_name))
+			{
+				$key = strtoupper($this->_name) . '_' . $layout;
+			}
+
+			// Needed attributes
+			$data['type'] = $layout;
+
+			if ($this->getApplication()->getLanguage()->hasKey('PLG_FIELDS_' . $key . '_LABEL'))
+			{
+				$data['label'] = Text::sprintf('PLG_FIELDS_' . $key . '_LABEL', strtolower($key));
+
+				// Fix wrongly set parentheses in RTL languages
+				if ($this->getApplication()->getLanguage()->isRtl())
+				{
+					$data['label'] = $data['label'] . '&#x200E;';
+				}
+			}
+			else
+			{
+				$data['label'] = $key;
+			}
+
+			$path = $root . '/fields';
+
+			// Add the path when it exists
+			if (file_exists($path))
+			{
+				$data['path'] = $path;
+			}
+
+			$path = $root . '/rules';
+
+			// Add the path when it exists
+			if (file_exists($path))
+			{
+				$data['rules'] = $path;
+			}
+
+			$types[] = $data;
+		}
+
+		// Add to cache and return the data
+		$types_cache[$this->_type . $this->_name] = $types;
+
+		return $types;
+	}
+
+	/**
+	 * Return the field's XML form definition as a DOMElement which is the child of $parent.
+	 *
+	 * @param   object      $field   The field
 	 * @param   DOMElement  $parent  The original parent element
 	 * @param   Form        $form    The form
 	 *
-	 * @return  DOMElement
+	 * @return  DOMElement|null
 	 * @since   1.0.0
 	 */
-	public function onCustomFieldsPrepareDom($field, DOMElement $parent, Form $form)
+	public function onCustomFieldsPrepareDom(object $field, DOMElement $parent, Form $form): ?DOMElement
 	{
 		// Call the onCustomFieldsPrepareDom method on FieldsPlugin
-		$parent_field = $this->parentOnCustomFieldsPrepareDom($field, $parent, $form);
+		$parent_field = $this->getParentFieldIncludingThisField($field, $parent);
 
 		if (!$parent_field)
 		{
@@ -275,7 +281,7 @@ class InceptionPlugin extends CMSPlugin
 			$parent_fieldset->setAttribute('repeat', 'true');
 		}
 
-		// Get the configured sub fields for this field
+		// Get the configured subfields for this field
 		$subfields = $this->getSubfieldsFromField($field);
 
 		// If we have 5 or more of them, use the `repeatable` layout instead of the `repeatable-table`
@@ -291,14 +297,13 @@ class InceptionPlugin extends CMSPlugin
 			$parent_field->setAttribute('layout', $customLayout);
 		}
 
-		// Iterate over the sub fields to call prepareDom on each of those sub-fields
+		// Iterate over the subfields to call prepareDom on each of those subfields
 		foreach ($subfields as $subfield)
 		{
-			// Let the relevant plugins do their work and insert the correct
-			// DOMElement's into our $parent_fieldset.
-			Factory::getApplication()->triggerEvent(
-				'onCustomFieldsPrepareDom',
-				[$subfield, $parent_fieldset, $form]
+			$newEvent = new GenericEvent('onCustomFieldsPrepareDom', [$subfield, $parent_fieldset, $form]);
+			$this->getApplication()->getDispatcher()->dispatch(
+				$newEvent->getName(),
+				$newEvent
 			);
 		}
 
@@ -306,16 +311,16 @@ class InceptionPlugin extends CMSPlugin
 	}
 
 	/**
-	 * Renders this fields value by rendering all sub fields and joining all those rendered sub fields together.
+	 * Render this field as the combined rendering of all subfields.
 	 *
-	 * @param   string    $context  The context
-	 * @param   object    $item     The item
-	 * @param   stdClass  $field    The field
+	 * @param   string  $context  The context
+	 * @param   object  $item     The item
+	 * @param   object  $field    The field
 	 *
 	 * @return  string
 	 * @since   1.0.0
 	 */
-	public function onCustomFieldsPrepareField($context, $item, $field)
+	public function onCustomFieldsPrepareField(string $context, object $item, object $field): string
 	{
 		// Check if the field should be processed by us
 		if (!$this->isTypeSupported($field->type))
@@ -334,7 +339,7 @@ class InceptionPlugin extends CMSPlugin
 
 		/**
 		 * Placeholder to hold all rows (if this field is repeatable).
-		 * Each array entry is another array representing a row, containing all of the sub fields that
+		 * Each array entry is another array representing a row, containing all the subfields that
 		 * are valid for this row and their raw and rendered values.
 		 */
 		$subform_rows = [];
@@ -350,13 +355,13 @@ class InceptionPlugin extends CMSPlugin
 		// Iterate over each row of the data
 		foreach ($rows as $row)
 		{
-			// Holds all sub fields of this row, incl. their raw and rendered value
+			// Holds all subfields of this row, incl. their raw and rendered value
 			$row_subfields = [];
 
 			// For each row, iterate over all the subfields
 			foreach ($this->getSubfieldsFromField($field) as $subfield)
 			{
-				// Fill value (and rawvalue) if we have data for this subfield in the current row, otherwise set them to empty
+				// Fill value (and raw value) if we have data for this subfield in the current row, otherwise set them to empty
 				$subfield->rawvalue = $subfield->value = $row[$subfield->name] ?? '';
 
 				// Do we want to render the value of this field, and is the value non-empty?
@@ -386,10 +391,16 @@ class InceptionPlugin extends CMSPlugin
 					else
 					{
 						// Render this virtual subfield
-						$subfield->value                     = Factory::getApplication()->triggerEvent(
+						$newEvent = new GenericEvent(
 							'onCustomFieldsPrepareField',
 							[$context, $item, $subfield]
 						);
+
+						$resultEvent = $this->getApplication()->getDispatcher()
+						                    ->dispatch($newEvent->getName(), $newEvent);
+
+						$subfield->value = $resultEvent->getArgument('result', []);
+
 						$this->renderCache[$renderCache_key] = $subfield->value;
 					}
 				}
@@ -400,30 +411,76 @@ class InceptionPlugin extends CMSPlugin
 					$subfield->value = implode(' ', $subfield->value);
 				}
 
-				// Store the subfield (incl. its raw and rendered value) into this rows sub fields
+				// Store the subfield (incl. its raw and rendered value) into this rows subfields
 				$row_subfields[$subfield->fieldname] = $subfield;
 			}
 
-			// Store all the sub fields of this row
+			// Store all the subfields of this row
 			$subform_rows[] = $row_subfields;
 		}
 
-		// Store all the rows and their corresponding sub fields in $field->subform_rows
+		// Store all the rows and their corresponding subfields in $field->subform_rows
 		$field->subform_rows = $subform_rows;
 
 		// Call our parent to combine all those together for the final $field->value
-		return $this->parentOnCustomFieldsPrepareField($context, $item, $field);
+		return $this->renderFieldAsHTML($field);
+	}
+
+	/**
+	 * Returns the path of the XML definition file for the field parameters.
+	 *
+	 * @param   Form    $form  The form
+	 * @param   object|array  $data  The data
+	 *
+	 * @return  string|null
+	 *
+	 * @since   1.0.1
+	 */
+	private function getFormPath(Form $form, $data): ?string
+	{
+		// Check if the field form is calling us
+		if (strpos($form->getName(), 'com_fields.field') !== 0)
+		{
+			return null;
+		}
+
+		// Ensure it is an object
+		$formData = (object) $data;
+
+		// Gather the type
+		$type = $form->getValue('type');
+
+		if (!empty($formData->type))
+		{
+			$type = $formData->type;
+		}
+
+		// Not us
+		if (!$this->isTypeSupported($type))
+		{
+			return null;
+		}
+
+		$path = JPATH_PLUGINS . '/' . $this->_type . '/' . $this->_name . '/src/params/' . $type . '.xml';
+
+		// Check if params file exists
+		if (!file_exists($path))
+		{
+			return null;
+		}
+
+		return $path;
 	}
 
 	/**
 	 * Returns an array of all options configured for this field.
 	 *
-	 * @param   stdClass  $field  The field
+	 * @param   object  $field  The field
 	 *
-	 * @return  stdClass[]
+	 * @return  object[]
 	 * @since   1.0.0
 	 */
-	protected function getOptionsFromField(stdClass $field)
+	private function getOptionsFromField(object $field): array
 	{
 		$result = [];
 
@@ -441,12 +498,12 @@ class InceptionPlugin extends CMSPlugin
 	/**
 	 * Returns the configured params for a given field.
 	 *
-	 * @param   stdClass  $field  The field
+	 * @param   object  $field  The field
 	 *
-	 * @return  \Joomla\Registry\Registry
+	 * @return  Registry
 	 * @since   1.0.0
 	 */
-	protected function getParamsFromField(stdClass $field)
+	private function getParamsFromField(object $field): Registry
 	{
 		$params = (clone $this->params);
 
@@ -459,15 +516,95 @@ class InceptionPlugin extends CMSPlugin
 	}
 
 	/**
-	 * Returns an array of all subfields for a given field. This will always return a bare clone
-	 * of a sub field, so manipulating it is safe.
+	 * Transforms the field into a DOM XML element and appends it as a child on the given parent.
 	 *
-	 * @param   stdClass  $field  The field
+	 * @param   object      $field   The field.
+	 * @param   DOMElement  $parent  The field node parent.
 	 *
-	 * @return  stdClass[]
+	 * @return  DOMElement|null
+	 *
+	 * @since   1.0.1
+	 */
+	private function getParentFieldIncludingThisField(object $field, DOMElement $parent): ?DOMElement
+	{
+		// Check if the field should be processed by us
+		if (!$this->isTypeSupported($field->type))
+		{
+			return null;
+		}
+
+		// Detect if the field is configured to be displayed on the form
+		if (!FieldsHelper::displayFieldOnForm($field))
+		{
+			return null;
+		}
+
+		// Create the node
+		$node = $parent->appendChild(new DOMElement('field'));
+
+		// Set the attributes
+		$node->setAttribute('name', $field->name);
+		$node->setAttribute('type', $field->type);
+		$node->setAttribute('label', $field->label);
+		$node->setAttribute('labelclass', $field->params->get('label_class', ''));
+		$node->setAttribute('description', $field->description);
+		$node->setAttribute('class', $field->params->get('class', ''));
+		$node->setAttribute('hint', $field->params->get('hint', ''));
+		$node->setAttribute('required', $field->required ? 'true' : 'false');
+
+		if ($layout = $field->params->get('form_layout'))
+		{
+			$node->setAttribute('layout', $layout);
+		}
+
+		if ($field->default_value !== '')
+		{
+			$defaultNode = $node->appendChild(new DOMElement('default'));
+			$defaultNode->appendChild(new \DOMCdataSection($field->default_value));
+		}
+
+		// Combine the two params
+		$params = clone $this->params;
+		$params->merge($field->fieldparams);
+
+		// Set the specific field parameters
+		foreach ($params->toArray() as $key => $param)
+		{
+			if (is_array($param))
+			{
+				// Multidimensional arrays (eg. list options) can't be transformed properly
+				$param = count($param) == count($param, COUNT_RECURSIVE) ? implode(',', $param) : '';
+			}
+
+			if ($param === '' || (!is_string($param) && !is_numeric($param)))
+			{
+				continue;
+			}
+
+			$node->setAttribute($key, $param);
+		}
+
+		// Check if it is allowed to edit the field
+		if (!FieldsHelper::canEditFieldValue($field))
+		{
+			$node->setAttribute('disabled', 'true');
+		}
+
+		// Return the node
+		return $node;
+	}
+
+	/**
+	 * Returns an array of all subfields for a given field.
+	 *
+	 * This will always return a bare clone of a subfield, so manipulating it is safe.
+	 *
+	 * @param   object  $field  The field
+	 *
+	 * @return  object[]
 	 * @since   1.0.0
 	 */
-	protected function getSubfieldsFromField(stdClass $field)
+	private function getSubfieldsFromField(object $field): array
 	{
 		if (static::$customFieldsCache === null)
 		{
@@ -489,22 +626,22 @@ class InceptionPlugin extends CMSPlugin
 		// Iterate over all configured options for this field
 		foreach ($this->getOptionsFromField($field) as $option)
 		{
-			// Check whether the wanted sub field really is an existing custom field
+			// Check whether the wanted subfield really is an existing custom field
 			if (!isset(static::$customFieldsCache[$option->customfield]))
 			{
 				continue;
 			}
 
-			// Get a clone of the sub field, so we and the caller can do some manipulation with it.
+			// Get a clone of the subfield, so we and the caller can do some manipulation with it.
 			$cur_field = (clone static::$customFieldsCache[$option->customfield]);
 
 			// Manipulate it and add our custom configuration to it
 			$cur_field->render_values = $option->render_values;
 
 			/**
-			 * Set the name of the sub field to its id so that the values in the database are being saved
-			 * based on the id of the sub fields, not on their name. Actually we do not need the name of
-			 * the sub fields to render them, but just to make sure we have the name when we need it, we
+			 * Set the name of the subfield to its id so that the values in the database are being saved
+			 * based on the id of the subfields, not on their name. Actually we do not need the name of
+			 * the subfields to render them, but just to make sure we have the name when we need it, we
 			 * store it as `fieldname`.
 			 */
 			$cur_field->fieldname = $cur_field->name;
@@ -518,20 +655,41 @@ class InceptionPlugin extends CMSPlugin
 	}
 
 	/**
+	 * Returns true if the given type is supported by the plugin.
+	 *
+	 * @param   string  $type  The type
+	 *
+	 * @return  bool
+	 *
+	 * @since   1.0.1
+	 */
+	private function isTypeSupported(string $type): bool
+	{
+		foreach ($this->onCustomFieldsGetTypes() as $typeSpecification)
+		{
+			if ($type == $typeSpecification['type'])
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Prepares the field value.
 	 *
-	 * @param   string    $context  The context.
-	 * @param   stdClass  $item     The item.
-	 * @param   stdClass  $field    The field.
+	 * @param   object  $field  The field.
 	 *
 	 * @return  string
 	 *
 	 * @since   1.0.1
 	 */
-	protected function parentOnCustomFieldsPrepareField($context, $item, $field)
+	private function renderFieldAsHTML(object $field): string
 	{
 		// Check if the field should be processed by us
-		if (!$this->isTypeSupported($field->type)) {
+		if (!$this->isTypeSupported($field->type))
+		{
 			return '';
 		}
 
@@ -542,6 +700,8 @@ class InceptionPlugin extends CMSPlugin
 		// Get the path for the layout file
 		$path = PluginHelper::getLayoutPath('fields', $this->_name, $field->type);
 
+		$context = $field->context ?? null;
+
 		// Render the layout
 		ob_start();
 		include $path;
@@ -549,139 +709,5 @@ class InceptionPlugin extends CMSPlugin
 
 		// Return the output
 		return $output;
-	}
-
-	/**
-	 * Transforms the field into a DOM XML element and appends it as a child on the given parent.
-	 *
-	 * @param   stdClass    $field   The field.
-	 * @param   DOMElement  $parent  The field node parent.
-	 * @param   Form        $form    The form.
-	 *
-	 * @return  DOMElement
-	 *
-	 * @since   1.0.1
-	 */
-	protected function parentOnCustomFieldsPrepareDom($field, DOMElement $parent, Form $form)
-	{
-		// Check if the field should be processed by us
-		if (!$this->isTypeSupported($field->type)) {
-			return null;
-		}
-
-		// Detect if the field is configured to be displayed on the form
-		if (!FieldsHelper::displayFieldOnForm($field)) {
-			return null;
-		}
-
-		// Create the node
-		$node = $parent->appendChild(new DOMElement('field'));
-
-		// Set the attributes
-		$node->setAttribute('name', $field->name);
-		$node->setAttribute('type', $field->type);
-		$node->setAttribute('label', $field->label);
-		$node->setAttribute('labelclass', $field->params->get('label_class', ''));
-		$node->setAttribute('description', $field->description);
-		$node->setAttribute('class', $field->params->get('class', ''));
-		$node->setAttribute('hint', $field->params->get('hint', ''));
-		$node->setAttribute('required', $field->required ? 'true' : 'false');
-
-		if ($layout = $field->params->get('form_layout')) {
-			$node->setAttribute('layout', $layout);
-		}
-
-		if ($field->default_value !== '') {
-			$defaultNode = $node->appendChild(new DOMElement('default'));
-			$defaultNode->appendChild(new \DOMCdataSection($field->default_value));
-		}
-
-		// Combine the two params
-		$params = clone $this->params;
-		$params->merge($field->fieldparams);
-
-		// Set the specific field parameters
-		foreach ($params->toArray() as $key => $param) {
-			if (is_array($param)) {
-				// Multidimensional arrays (eg. list options) can't be transformed properly
-				$param = count($param) == count($param, COUNT_RECURSIVE) ? implode(',', $param) : '';
-			}
-
-			if ($param === '' || (!is_string($param) && !is_numeric($param))) {
-				continue;
-			}
-
-			$node->setAttribute($key, $param);
-		}
-
-		// Check if it is allowed to edit the field
-		if (!FieldsHelper::canEditFieldValue($field)) {
-			$node->setAttribute('disabled', 'true');
-		}
-
-		// Return the node
-		return $node;
-	}
-
-	/**
-	 * Returns the path of the XML definition file for the field parameters
-	 *
-	 * @param   Form       $form  The form
-	 * @param   \stdClass  $data  The data
-	 *
-	 * @return  string
-	 *
-	 * @since   1.0.1
-	 */
-	protected function getFormPath(Form $form, $data)
-	{
-		// Check if the field form is calling us
-		if (strpos($form->getName(), 'com_fields.field') !== 0) {
-			return null;
-		}
-
-		// Ensure it is an object
-		$formData = (object) $data;
-
-		// Gather the type
-		$type = $form->getValue('type');
-
-		if (!empty($formData->type)) {
-			$type = $formData->type;
-		}
-
-		// Not us
-		if (!$this->isTypeSupported($type)) {
-			return null;
-		}
-
-		$path = JPATH_PLUGINS . '/' . $this->_type . '/' . $this->_name . '/params/' . $type . '.xml';
-
-		// Check if params file exists
-		if (!file_exists($path)) {
-			return null;
-		}
-
-		return $path;
-	}
-
-	/**
-	 * Returns true if the given type is supported by the plugin.
-	 *
-	 * @param   string  $type  The type
-	 *
-	 * @return  boolean
-	 *
-	 * @since   1.0.1
-	 */
-	protected function isTypeSupported($type)
-	{
-		foreach ($this->onCustomFieldsGetTypes() as $typeSpecification) {
-			if ($type == $typeSpecification['type']) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 }

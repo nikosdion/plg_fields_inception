@@ -13,7 +13,6 @@
     <files>
         <folder>fields</folder>
         <folder>layouts</folder>
-        <folder>params</folder>
         <folder>services</folder>
         <folder plugin="inception">src</folder>
         <folder>tmpl</folder>
