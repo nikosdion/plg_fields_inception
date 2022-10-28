@@ -58,7 +58,11 @@ extract($displayData);
 		}
 
 	?>
-<div <?= implode(' ', $attributes) ?>>
+<div <?= implode(' ', $attributes) ?>
+		data-derp-showon="<?= $field->showon ?>"
+		data-derp-formControl="<?= $field->formControl ?>"
+		data-derp-group="<?= $field->group ?>"
+>
 	<h3><?= $refGetLabel->invoke($field) ?></h3>
     <div>
 		<?= $refGetInput->invoke($field) ?>

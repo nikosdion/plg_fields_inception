@@ -41,6 +41,8 @@ final class InceptionPlugin extends CMSPlugin implements SubscriberInterface
 	 */
 	private static $customFieldsCache = null;
 
+	private static $rowCounters = [];
+
 	protected $allowLegacyListeners = false;
 
 	/**
@@ -306,7 +308,7 @@ final class InceptionPlugin extends CMSPlugin implements SubscriberInterface
 		$parent_field->setAttribute('addfieldprefix', 'Joomla\Plugin\Fields\Inception\Field');
 
 		// Override the fieldname attribute of the subform - this is being used to index the rows
-		$parent_field->setAttribute('fieldname', 'row');
+		$parent_field->setAttribute('fieldname', $this->getUniqueRowCounterField());
 
 		// If the user configured this subform instance as required
 		if ($field->required)
@@ -318,17 +320,21 @@ final class InceptionPlugin extends CMSPlugin implements SubscriberInterface
 		// Get the configured parameters for this field
 		$field_params = $this->getParamsFromField($field);
 
-		// If this fields should be repeatable, set some attributes on the subform element
-		if ($field_params->get('repeat', '1') == '1')
-		{
-			$parent_field->setAttribute('multiple', 'true');
-			$parent_field->setAttribute('layout', 'inception.repeatable-table');
-		}
+		// This is always a repeatable field; set some attributes on the subform element
+		$parent_field->setAttribute('multiple', 'true');
+		$parent_field->setAttribute('layout', 'inception.repeatable');
 
-		// Create a child 'form' DOMElement under the field[type=subform] element.
+		// Create a child 'form' DOMElement under the field[type=inception] element.
 		$parent_fieldset = $parent_field->appendChild(new DOMElement('form'));
 		$parent_fieldset->setAttribute('hidden', 'true');
 		$parent_fieldset->setAttribute('name', ($field->name . '_modal'));
+
+		$customLayout = $field->params->get('edit_layout');
+
+		if ($customLayout)
+		{
+			$parent_field->setAttribute('layout', $customLayout);
+		}
 
 		if ($field_params->get('max_rows'))
 		{
@@ -343,19 +349,6 @@ final class InceptionPlugin extends CMSPlugin implements SubscriberInterface
 
 		// Get the configured subfields for this field
 		$subfields = $this->getSubfieldsFromField($field);
-
-		// If we have 5 or more of them, use the `repeatable` layout instead of the `repeatable-table`
-		if (!$inception || count($subfields) >= 5)
-		{
-			$parent_field->setAttribute('layout', 'inception.repeatable');
-		}
-
-		$customLayout = $field->params->get('edit_layout');
-
-		if ($customLayout)
-		{
-			$parent_field->setAttribute('layout', $customLayout);
-		}
 
 		// Iterate over the subfields to call prepareDom on each of those subfields
 		foreach ($subfields as $subfield)
@@ -671,6 +664,25 @@ final class InceptionPlugin extends CMSPlugin implements SubscriberInterface
 
 		// Return the node
 		return $node;
+	}
+
+	/**
+	 * Get a unique field name for a row counter.
+	 *
+	 * This is required for showon to work, as long as you are also using my ShowOn plugin for forms.
+	 *
+	 * @return  string
+	 * @throws  \Exception
+	 * @since   1.0.1
+	 */
+	private function getUniqueRowCounterField()
+	{
+		do
+		{
+			$rowCounter = 'rowCounter_' . md5(random_bytes(16));
+		} while (in_array($rowCounter, static::$rowCounters));
+
+		return $rowCounter;
 	}
 
 	/**
