@@ -6,7 +6,7 @@
 		default=""
 	/>
 	<fields name="fieldparams">
-		<fieldset name="fieldparams" addfieldpath="plugins/fields/inception/fields">
+		<fieldset name="fieldparams" addfieldprefix="Joomla\Plugin\Fields\Inception\Field">
 
 			<field
 				name="repeat"

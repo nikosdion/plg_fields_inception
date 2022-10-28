@@ -9,11 +9,13 @@
     <authorUrl>https://www.dionysopoulos.me</authorUrl>
     <version>1.0.1</version>
     <description>PLG_FIELDS_INCEPTION_XML_DESCRIPTION</description>
+    <namespace path="src">Joomla\Plugin\Fields\Inception</namespace>
     <files>
-        <filename plugin="inception">inception.php</filename>
         <folder>fields</folder>
         <folder>layouts</folder>
         <folder>params</folder>
+        <folder>services</folder>
+        <folder plugin="inception">src</folder>
         <folder>tmpl</folder>
     </files>
     <languages folder="language">

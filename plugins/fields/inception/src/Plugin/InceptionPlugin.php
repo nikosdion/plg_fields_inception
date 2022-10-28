@@ -1,31 +1,40 @@
 <?php
 /**
  * @copyright (C) 2022 Nicholas K. Dionysopoulos
- * @license   GNU General Public License version 2 or later; see LICENSE.txt
+ * @license       GNU General Public License version 2 or later; see LICENSE.txt
  *
  * Based on Joomla's subform field plugin with the following copyright notice:
  * Copyright (C) 2019 Open Source Matters, Inc. <https://www.joomla.org>
  */
 
+namespace Joomla\Plugin\Fields\Inception\Plugin;
+
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Filesystem\Folder;
 use Joomla\CMS\Form\Form;
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Plugin\CMSPlugin;
+use Joomla\CMS\Plugin\PluginHelper;
 use Joomla\Component\Fields\Administrator\Helper\FieldsHelper;
-use Joomla\Component\Fields\Administrator\Plugin\FieldsPlugin;
+use stdClass;
 
 defined('_JEXEC') or die;
 
 /**
  * Fields inception (nested subform) Plugin
  *
- * @since  4.0.0
+ * @since  1.0.0
  */
-class PlgFieldsInception extends FieldsPlugin
+class InceptionPlugin extends CMSPlugin
 {
 	/**
 	 * Array to do a fast in-memory caching of all custom field items.
 	 *
-	 * @since 4.0.0
-	 * @var array
+	 * @since 1.0.0
+	 * @var   array
 	 *
 	 */
 	protected static $customFieldsCache = null;
@@ -34,11 +43,99 @@ class PlgFieldsInception extends FieldsPlugin
 	 * Two-dimensional array to hold to do a fast in-memory caching of rendered
 	 * subfield values.
 	 *
-	 * @since 4.0.0
-	 * @var array
+	 * @since 1.0.0
+	 * @var   array
 	 *
 	 */
 	protected $renderCache = [];
+
+	/**
+	 * Affects constructor behavior. If true, language files will be loaded automatically.
+	 *
+	 * @var    boolean
+	 * @since  1.0.0
+	 */
+	protected $autoloadLanguage = true;
+
+	/**
+	 * Application object.
+	 *
+	 * @var    \Joomla\CMS\Application\CMSApplication
+	 * @since  1.0.0
+	 */
+	protected $app;
+
+	/**
+	 * Returns the custom fields types.
+	 *
+	 * @return  string[][]
+	 *
+	 * @since   1.0.1
+	 */
+	public function onCustomFieldsGetTypes()
+	{
+		// Cache filesystem access / checks
+		static $types_cache = array();
+
+		if (isset($types_cache[$this->_type . $this->_name])) {
+			return $types_cache[$this->_type . $this->_name];
+		}
+
+		$types = array();
+
+		// The root of the plugin
+		$root = JPATH_PLUGINS . '/' . $this->_type . '/' . $this->_name;
+
+		foreach (Folder::files($root . '/tmpl', '.php') as $layout) {
+			// Strip the extension
+			$layout = str_replace('.php', '', $layout);
+
+			// The data array
+			$data = array();
+
+			// The language key
+			$key = strtoupper($layout);
+
+			if ($key != strtoupper($this->_name)) {
+				$key = strtoupper($this->_name) . '_' . $layout;
+			}
+
+			// Needed attributes
+			$data['type'] = $layout;
+
+			if ($this->app->getLanguage()->hasKey('PLG_FIELDS_' . $key . '_LABEL')) {
+				$data['label'] = Text::sprintf('PLG_FIELDS_' . $key . '_LABEL', strtolower($key));
+
+				// Fix wrongly set parentheses in RTL languages
+				if ($this->app->getLanguage()->isRtl()) {
+					$data['label'] = $data['label'] . '&#x200E;';
+				}
+			} else {
+				$data['label'] = $key;
+			}
+
+			$path = $root . '/fields';
+
+			// Add the path when it exists
+			if (file_exists($path)) {
+				$data['path'] = $path;
+			}
+
+			$path = $root . '/rules';
+
+			// Add the path when it exists
+			if (file_exists($path)) {
+				$data['rules'] = $path;
+			}
+
+			$types[] = $data;
+		}
+
+		// Add to cache and return the data
+		$types_cache[$this->_type . $this->_name] = $types;
+
+		return $types;
+	}
 
 	/**
 	 * Handles the onContentPrepareForm event. Adds form definitions to relevant forms.
@@ -47,8 +144,7 @@ class PlgFieldsInception extends FieldsPlugin
 	 * @param   array|object  $data  The data of the form
 	 *
 	 * @return  void
-	 *
-	 * @since  4.0.0
+	 * @since   1.0.0
 	 */
 	public function onContentPrepareForm(Form $form, $data)
 	{
@@ -107,13 +203,12 @@ class PlgFieldsInception extends FieldsPlugin
 	 * Manipulates the $field->value before the field is being passed to
 	 * onCustomFieldsPrepareField.
 	 *
-	 * @param   string     $context  The context
-	 * @param   object     $item     The item
-	 * @param   \stdClass  $field    The field
+	 * @param   string    $context  The context
+	 * @param   object    $item     The item
+	 * @param   stdClass  $field    The field
 	 *
 	 * @return  void
-	 *
-	 * @since 4.0.0
+	 * @since   1.0.0
 	 */
 	public function onCustomFieldsBeforePrepareField($context, $item, $field)
 	{
@@ -137,18 +232,17 @@ class PlgFieldsInception extends FieldsPlugin
 	 * Returns a DOMElement which is the child of $parent and represents
 	 * the form XML definition for this field.
 	 *
-	 * @param   \stdClass   $field   The field
+	 * @param   stdClass    $field   The field
 	 * @param   DOMElement  $parent  The original parent element
 	 * @param   Form        $form    The form
 	 *
-	 * @return  \DOMElement
-	 *
-	 * @since 4.0.0
+	 * @return  DOMElement
+	 * @since   1.0.0
 	 */
 	public function onCustomFieldsPrepareDom($field, DOMElement $parent, Form $form)
 	{
 		// Call the onCustomFieldsPrepareDom method on FieldsPlugin
-		$parent_field = parent::onCustomFieldsPrepareDom($field, $parent, $form);
+		$parent_field = $this->parentOnCustomFieldsPrepareDom($field, $parent, $form);
 
 		if (!$parent_field)
 		{
@@ -228,26 +322,25 @@ class PlgFieldsInception extends FieldsPlugin
 	/**
 	 * Renders this fields value by rendering all sub fields and joining all those rendered sub fields together.
 	 *
-	 * @param   string     $context  The context
-	 * @param   object     $item     The item
-	 * @param   \stdClass  $field    The field
+	 * @param   string    $context  The context
+	 * @param   object    $item     The item
+	 * @param   stdClass  $field    The field
 	 *
 	 * @return  string
-	 *
-	 * @since 4.0.0
+	 * @since   1.0.0
 	 */
 	public function onCustomFieldsPrepareField($context, $item, $field)
 	{
 		// Check if the field should be processed by us
 		if (!$this->isTypeSupported($field->type))
 		{
-			return;
+			return '';
 		}
 
 		// If we don't have any subfields (or values for them), nothing to do.
 		if (!is_array($field->value) || count($field->value) < 1)
 		{
-			return;
+			return '';
 		}
 
 		// Get the field params
@@ -333,19 +426,18 @@ class PlgFieldsInception extends FieldsPlugin
 		$field->subform_rows = $subform_rows;
 
 		// Call our parent to combine all those together for the final $field->value
-		return parent::onCustomFieldsPrepareField($context, $item, $field);
+		return $this->parentOnCustomFieldsPrepareField($context, $item, $field);
 	}
 
 	/**
 	 * Returns an array of all options configured for this field.
 	 *
-	 * @param   \stdClass  $field  The field
+	 * @param   stdClass  $field  The field
 	 *
-	 * @return  \stdClass[]
-	 *
-	 * @since 4.0.0
+	 * @return  stdClass[]
+	 * @since   1.0.0
 	 */
-	protected function getOptionsFromField(\stdClass $field)
+	protected function getOptionsFromField(stdClass $field)
 	{
 		$result = [];
 
@@ -363,13 +455,12 @@ class PlgFieldsInception extends FieldsPlugin
 	/**
 	 * Returns the configured params for a given field.
 	 *
-	 * @param   \stdClass  $field  The field
+	 * @param   stdClass  $field  The field
 	 *
 	 * @return  \Joomla\Registry\Registry
-	 *
-	 * @since 4.0.0
+	 * @since   1.0.0
 	 */
-	protected function getParamsFromField(\stdClass $field)
+	protected function getParamsFromField(stdClass $field)
 	{
 		$params = (clone $this->params);
 
@@ -385,13 +476,12 @@ class PlgFieldsInception extends FieldsPlugin
 	 * Returns an array of all subfields for a given field. This will always return a bare clone
 	 * of a sub field, so manipulating it is safe.
 	 *
-	 * @param   \stdClass  $field  The field
+	 * @param   stdClass  $field  The field
 	 *
-	 * @return  \stdClass[]
-	 *
-	 * @since 4.0.0
+	 * @return  stdClass[]
+	 * @since   1.0.0
 	 */
-	protected function getSubfieldsFromField(\stdClass $field)
+	protected function getSubfieldsFromField(stdClass $field)
 	{
 		if (static::$customFieldsCache === null)
 		{
@@ -439,5 +529,173 @@ class PlgFieldsInception extends FieldsPlugin
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Prepares the field value.
+	 *
+	 * @param   string    $context  The context.
+	 * @param   stdClass  $item     The item.
+	 * @param   stdClass  $field    The field.
+	 *
+	 * @return  string
+	 *
+	 * @since   1.0.1
+	 */
+	protected function parentOnCustomFieldsPrepareField($context, $item, $field)
+	{
+		// Check if the field should be processed by us
+		if (!$this->isTypeSupported($field->type)) {
+			return '';
+		}
+
+		// Merge the params from the plugin and field which has precedence
+		$fieldParams = clone $this->params;
+		$fieldParams->merge($field->fieldparams);
+
+		// Get the path for the layout file
+		$path = PluginHelper::getLayoutPath('fields', $this->_name, $field->type);
+
+		// Render the layout
+		ob_start();
+		include $path;
+		$output = ob_get_clean();
+
+		// Return the output
+		return $output;
+	}
+
+	/**
+	 * Transforms the field into a DOM XML element and appends it as a child on the given parent.
+	 *
+	 * @param   stdClass    $field   The field.
+	 * @param   DOMElement  $parent  The field node parent.
+	 * @param   Form        $form    The form.
+	 *
+	 * @return  DOMElement
+	 *
+	 * @since   1.0.1
+	 */
+	protected function parentOnCustomFieldsPrepareDom($field, DOMElement $parent, Form $form)
+	{
+		// Check if the field should be processed by us
+		if (!$this->isTypeSupported($field->type)) {
+			return null;
+		}
+
+		// Detect if the field is configured to be displayed on the form
+		if (!FieldsHelper::displayFieldOnForm($field)) {
+			return null;
+		}
+
+		// Create the node
+		$node = $parent->appendChild(new DOMElement('field'));
+
+		// Set the attributes
+		$node->setAttribute('name', $field->name);
+		$node->setAttribute('type', $field->type);
+		$node->setAttribute('label', $field->label);
+		$node->setAttribute('labelclass', $field->params->get('label_class', ''));
+		$node->setAttribute('description', $field->description);
+		$node->setAttribute('class', $field->params->get('class', ''));
+		$node->setAttribute('hint', $field->params->get('hint', ''));
+		$node->setAttribute('required', $field->required ? 'true' : 'false');
+
+		if ($layout = $field->params->get('form_layout')) {
+			$node->setAttribute('layout', $layout);
+		}
+
+		if ($field->default_value !== '') {
+			$defaultNode = $node->appendChild(new DOMElement('default'));
+			$defaultNode->appendChild(new \DOMCdataSection($field->default_value));
+		}
+
+		// Combine the two params
+		$params = clone $this->params;
+		$params->merge($field->fieldparams);
+
+		// Set the specific field parameters
+		foreach ($params->toArray() as $key => $param) {
+			if (is_array($param)) {
+				// Multidimensional arrays (eg. list options) can't be transformed properly
+				$param = count($param) == count($param, COUNT_RECURSIVE) ? implode(',', $param) : '';
+			}
+
+			if ($param === '' || (!is_string($param) && !is_numeric($param))) {
+				continue;
+			}
+
+			$node->setAttribute($key, $param);
+		}
+
+		// Check if it is allowed to edit the field
+		if (!FieldsHelper::canEditFieldValue($field)) {
+			$node->setAttribute('disabled', 'true');
+		}
+
+		// Return the node
+		return $node;
+	}
+
+	/**
+	 * Returns the path of the XML definition file for the field parameters
+	 *
+	 * @param   Form       $form  The form
+	 * @param   \stdClass  $data  The data
+	 *
+	 * @return  string
+	 *
+	 * @since   1.0.1
+	 */
+	protected function getFormPath(Form $form, $data)
+	{
+		// Check if the field form is calling us
+		if (strpos($form->getName(), 'com_fields.field') !== 0) {
+			return null;
+		}
+
+		// Ensure it is an object
+		$formData = (object) $data;
+
+		// Gather the type
+		$type = $form->getValue('type');
+
+		if (!empty($formData->type)) {
+			$type = $formData->type;
+		}
+
+		// Not us
+		if (!$this->isTypeSupported($type)) {
+			return null;
+		}
+
+		$path = JPATH_PLUGINS . '/' . $this->_type . '/' . $this->_name . '/params/' . $type . '.xml';
+
+		// Check if params file exists
+		if (!file_exists($path)) {
+			return null;
+		}
+
+		return $path;
+	}
+
+	/**
+	 * Returns true if the given type is supported by the plugin.
+	 *
+	 * @param   string  $type  The type
+	 *
+	 * @return  boolean
+	 *
+	 * @since   1.0.1
+	 */
+	protected function isTypeSupported($type)
+	{
+		foreach ($this->onCustomFieldsGetTypes() as $typeSpecification) {
+			if ($type == $typeSpecification['type']) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

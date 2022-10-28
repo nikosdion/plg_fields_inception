@@ -1,12 +1,5 @@
 <?php
 
-use Joomla\CMS\Filesystem\Folder;
-use Joomla\CMS\Filesystem\Path;
-use Joomla\CMS\Form\Field\SubformField;
-use Joomla\CMS\Form\FormField;
-use Joomla\CMS\HTML\HTMLHelper;
-use Joomla\CMS\Language\Text;
-
 /**
  * @copyright (C) 2022 Nicholas K. Dionysopoulos
  * @license   GNU General Public License version 2 or later; see LICENSE.txt
@@ -15,7 +8,15 @@ use Joomla\CMS\Language\Text;
  * Copyright (C) 2019 Open Source Matters, Inc. <https://www.joomla.org>
  */
 
-class JFormFieldEditlayout extends FormField
+namespace Joomla\Plugin\Fields\Inception\Field;
+
+use Joomla\CMS\Filesystem\Folder;
+use Joomla\CMS\Filesystem\Path;
+use Joomla\CMS\Form\FormField;
+use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Language\Text;
+
+class EditLayoutField extends FormField
 {
 	/**
 	 * The form field type.
