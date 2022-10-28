@@ -11,6 +11,7 @@
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Form\Form;
+use Joomla\CMS\Form\FormHelper;
 use Joomla\CMS\Language\Text;
 
 extract($displayData);
@@ -49,10 +50,19 @@ extract($displayData);
 		$refGetLabel->setAccessible(true);
 		$refGetInput = $refObj->getMethod('getInput');
 		$refGetInput->setAccessible(true);
+
+		$attributes = [];
+
+		if ($field->showon) {
+			$attributes[] = 'data-showon=\'' . json_encode(FormHelper::parseShowOnConditions($field->showon, $field->formControl, $field->group)) . '\'';
+		}
+
 	?>
+<div <?= implode(' ', $attributes) ?>>
 	<h3><?= $refGetLabel->invoke($field) ?></h3>
     <div>
 		<?= $refGetInput->invoke($field) ?>
 	</div>
+</div>
 <?php endforeach; ?>
 </div>
