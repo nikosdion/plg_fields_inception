@@ -50,22 +50,6 @@ class InceptionPlugin extends CMSPlugin
 	protected $renderCache = [];
 
 	/**
-	 * Affects constructor behavior. If true, language files will be loaded automatically.
-	 *
-	 * @var    boolean
-	 * @since  1.0.0
-	 */
-	protected $autoloadLanguage = true;
-
-	/**
-	 * Application object.
-	 *
-	 * @var    \Joomla\CMS\Application\CMSApplication
-	 * @since  1.0.0
-	 */
-	protected $app;
-
-	/**
 	 * Returns the custom fields types.
 	 *
 	 * @return  string[][]
@@ -80,6 +64,8 @@ class InceptionPlugin extends CMSPlugin
 		if (isset($types_cache[$this->_type . $this->_name])) {
 			return $types_cache[$this->_type . $this->_name];
 		}
+
+		$this->loadLanguage();
 
 		$types = array();
 
@@ -103,11 +89,11 @@ class InceptionPlugin extends CMSPlugin
 			// Needed attributes
 			$data['type'] = $layout;
 
-			if ($this->app->getLanguage()->hasKey('PLG_FIELDS_' . $key . '_LABEL')) {
+			if ($this->getApplication()->getLanguage()->hasKey('PLG_FIELDS_' . $key . '_LABEL')) {
 				$data['label'] = Text::sprintf('PLG_FIELDS_' . $key . '_LABEL', strtolower($key));
 
 				// Fix wrongly set parentheses in RTL languages
-				if ($this->app->getLanguage()->isRtl()) {
+				if ($this->getApplication()->getLanguage()->isRtl()) {
 					$data['label'] = $data['label'] . '&#x200E;';
 				}
 			} else {
