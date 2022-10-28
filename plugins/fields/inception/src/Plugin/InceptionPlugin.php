@@ -19,6 +19,8 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Plugin\PluginHelper;
 use Joomla\Component\Fields\Administrator\Helper\FieldsHelper;
+use Joomla\Event\Event;
+use Joomla\Event\SubscriberInterface;
 use Joomla\Registry\Registry;
 
 defined('_JEXEC') or die;
@@ -28,7 +30,7 @@ defined('_JEXEC') or die;
  *
  * @since  1.0.0
  */
-final class InceptionPlugin extends CMSPlugin
+final class InceptionPlugin extends CMSPlugin implements SubscriberInterface
 {
 	/**
 	 * Cache of custom field items.
@@ -39,6 +41,8 @@ final class InceptionPlugin extends CMSPlugin
 	 */
 	private static $customFieldsCache = null;
 
+	protected $allowLegacyListeners = false;
+
 	/**
 	 * Cache of rendered subfield values.
 	 *
@@ -48,17 +52,34 @@ final class InceptionPlugin extends CMSPlugin
 	 */
 	private $renderCache = [];
 
+	/** @inheritDoc */
+	public static function getSubscribedEvents(): array
+	{
+		return [
+			'onContentPrepareForm'             => 'onContentPrepareForm',
+			'onCustomFieldsBeforePrepareField' => 'onCustomFieldsBeforePrepareField',
+			'onCustomFieldsGetTypes'           => 'onCustomFieldsGetTypes',
+			'onCustomFieldsPrepareDom'         => 'onCustomFieldsPrepareDom',
+			'onCustomFieldsPrepareField'       => 'onCustomFieldsPrepareField',
+		];
+	}
+
 	/**
 	 * Adds form definitions to relevant forms.
 	 *
-	 * @param   Form          $form  The form to manipulate
-	 * @param   array|object  $data  The data of the form
+	 * @param   Event  $event  The onContentPrepareForm event we are handling
 	 *
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function onContentPrepareForm(Form $form, $data): void
+	public function onContentPrepareForm(Event $event): void
 	{
+		/**
+		 * @var   Form         $form The form to manipulate
+		 * @var   array|object $data The data of the form
+		 */
+		[$form, $data] = $event->getArguments();
+
 		// Get the path to our own form definition (basically ./src/params/inception.xml)
 		$path = $this->getFormPath($form, $data);
 
@@ -113,15 +134,20 @@ final class InceptionPlugin extends CMSPlugin
 	/**
 	 * Manipulates the value before the field is passed to onCustomFieldsPrepareField.
 	 *
-	 * @param   string  $context  The context
-	 * @param   object  $item     The item
-	 * @param   object  $field    The field
+	 * @param   Event  $event  The onCustomFieldsPrepareField event we are handling
 	 *
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function onCustomFieldsBeforePrepareField(string $context, object $item, object $field): void
+	public function onCustomFieldsBeforePrepareField(Event $event): void
 	{
+		/**
+		 * @var   string $context The context
+		 * @var   object $item    The item
+		 * @var   object $field   The field
+		 */
+		[$context, $item, $field] = $event->getArguments();
+
 		// Check if the field should be processed by us
 		if (!$this->isTypeSupported($field->type))
 		{
@@ -141,18 +167,30 @@ final class InceptionPlugin extends CMSPlugin
 	/**
 	 * Returns the custom fields types.
 	 *
-	 * @return  string[][]
+	 * @param   Event  $event  The onCustomFieldsGetTypes event we are handling
 	 *
+	 * @return  void
 	 * @since   1.0.1
 	 */
-	public function onCustomFieldsGetTypes(): array
+	public function onCustomFieldsGetTypes(Event $event): void
 	{
 		// Cache filesystem access / checks
 		static $types_cache = [];
 
 		if (isset($types_cache[$this->_type . $this->_name]))
 		{
-			return $types_cache[$this->_type . $this->_name];
+			$result = $event->getArgument('result', []);
+			$event->setArgument(
+				'result',
+				array_merge(
+					$result,
+					[
+						$types_cache[$this->_type . $this->_name],
+					]
+				)
+			);
+
+			return;
 		}
 
 		$this->loadLanguage();
@@ -218,27 +256,48 @@ final class InceptionPlugin extends CMSPlugin
 		// Add to cache and return the data
 		$types_cache[$this->_type . $this->_name] = $types;
 
-		return $types;
+		$result = $event->getArgument('result', []);
+		$event->setArgument(
+			'result',
+			array_merge(
+				$result,
+				[$types]
+			)
+		);
 	}
 
 	/**
 	 * Return the field's XML form definition as a DOMElement which is the child of $parent.
 	 *
-	 * @param   object      $field   The field
-	 * @param   DOMElement  $parent  The original parent element
-	 * @param   Form        $form    The form
+	 * @param   Event  $event  The onCustomFieldsPrepareDom we are handling
 	 *
-	 * @return  DOMElement|null
+	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function onCustomFieldsPrepareDom(object $field, DOMElement $parent, Form $form): ?DOMElement
+	public function onCustomFieldsPrepareDom(Event $event): void
 	{
+		/**
+		 * @var   object     $field  The field
+		 * @var   DOMElement $parent The original parent element
+		 * @var   Form       $form   The form
+		 */
+		[$field, $parent, $form] = $event->getArguments();
+
 		// Call the onCustomFieldsPrepareDom method on FieldsPlugin
 		$parent_field = $this->getParentFieldIncludingThisField($field, $parent);
 
 		if (!$parent_field)
 		{
-			return $parent_field;
+			$result = $event->getArgument('result', []);
+			$event->setArgument(
+				'result',
+				array_merge(
+					$result,
+					[$parent_field]
+				)
+			);
+
+			return;
 		}
 
 		$inception = $parent_field->parentNode->tagName === 'form';
@@ -307,31 +366,43 @@ final class InceptionPlugin extends CMSPlugin
 			);
 		}
 
-		return $parent_field;
+		$result = $event->getArgument('result', []);
+		$event->setArgument(
+			'result',
+			array_merge(
+				$result,
+				[$parent_field]
+			)
+		);
 	}
 
 	/**
 	 * Render this field as the combined rendering of all subfields.
 	 *
-	 * @param   string  $context  The context
-	 * @param   object  $item     The item
-	 * @param   object  $field    The field
+	 * @param   Event  $event  The onCustomFieldsPrepareField event we are handling
 	 *
-	 * @return  string
+	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function onCustomFieldsPrepareField(string $context, object $item, object $field): string
+	public function onCustomFieldsPrepareField(Event $event): void
 	{
+		/**
+		 * @var   string $context The context
+		 * @var   object $item    The item
+		 * @var   object $field   The field
+		 */
+		[$context, $item, $field] = $event->getArguments();
+
 		// Check if the field should be processed by us
 		if (!$this->isTypeSupported($field->type))
 		{
-			return '';
+			return;
 		}
 
 		// If we don't have any subfields (or values for them), nothing to do.
 		if (!is_array($field->value) || count($field->value) < 1)
 		{
-			return '';
+			return;
 		}
 
 		// Get the field params
@@ -423,13 +494,20 @@ final class InceptionPlugin extends CMSPlugin
 		$field->subform_rows = $subform_rows;
 
 		// Call our parent to combine all those together for the final $field->value
-		return $this->renderFieldAsHTML($field);
+		$result = $event->getArgument('result', []);
+		$event->setArgument(
+			'result',
+			array_merge(
+				$result,
+				[$this->renderFieldAsHTML($field)]
+			)
+		);
 	}
 
 	/**
 	 * Returns the path of the XML definition file for the field parameters.
 	 *
-	 * @param   Form    $form  The form
+	 * @param   Form          $form  The form
 	 * @param   object|array  $data  The data
 	 *
 	 * @return  string|null
@@ -665,8 +743,16 @@ final class InceptionPlugin extends CMSPlugin
 	 */
 	private function isTypeSupported(string $type): bool
 	{
-		foreach ($this->onCustomFieldsGetTypes() as $typeSpecification)
+		$pseudoEvent = new GenericEvent('onCustomFieldsGetTypes', []);
+		$this->onCustomFieldsGetTypes($pseudoEvent);
+
+		foreach ($pseudoEvent->getArgument('result', [null])[0] as $typeSpecification)
 		{
+			if (!is_array($typeSpecification))
+			{
+				continue;
+			}
+
 			if ($type == $typeSpecification['type'])
 			{
 				return true;
