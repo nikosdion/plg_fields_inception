@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later; see LICENSE.txt</license>
     <authorEmail>nicholas@dionysopoulos.me</authorEmail>
     <authorUrl>https://www.dionysopoulos.me</authorUrl>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <description>PLG_FIELDS_INCEPTION_XML_DESCRIPTION</description>
     <files>
         <filename plugin="inception">inception.php</filename>

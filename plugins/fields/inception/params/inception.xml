@@ -6,7 +6,7 @@
 		default=""
 	/>
 	<fields name="fieldparams">
-		<fieldset name="fieldparams">
+		<fieldset name="fieldparams" addfieldpath="plugins/fields/inception/fields">
 
 			<field
 				name="repeat"
@@ -25,6 +25,12 @@
 				default=""
 				filter="integer"
 				showon="repeat:1"
+			/>
+			<field
+					name="edit_layout"
+					type="EditLayout"
+					label="PLG_FIELDS_INCEPTION_PARAMS_EDIT_LAYOUT_LABEL"
+					class="form-select"
 			/>
 			<field
 				name="options"

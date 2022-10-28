@@ -204,6 +204,13 @@ class PlgFieldsInception extends FieldsPlugin
 			$parent_field->setAttribute('layout', 'inception.repeatable');
 		}
 
+		$customLayout = $field->params->get('edit_layout');
+
+		if ($customLayout)
+		{
+			$parent_field->setAttribute('layout', $customLayout);
+		}
+
 		// Iterate over the sub fields to call prepareDom on each of those sub-fields
 		foreach ($subfields as $subfield)
 		{

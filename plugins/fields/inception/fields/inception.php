@@ -1,6 +1,6 @@
 <?php
 
-use Joomla\CMS\Layout\FileLayout;
+use Joomla\CMS\Form\Field\SubformField;
 
 /**
  * @copyright (C) 2022 Nicholas K. Dionysopoulos
@@ -10,7 +10,7 @@ use Joomla\CMS\Layout\FileLayout;
  * Copyright (C) 2019 Open Source Matters, Inc. <https://www.joomla.org>
  */
 
-class JFormFieldInception extends JFormFieldSubform
+class JFormFieldInception extends SubformField
 {
 	/**
 	 * The form field type.
