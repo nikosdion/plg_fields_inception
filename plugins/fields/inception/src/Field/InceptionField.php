@@ -1,7 +1,5 @@
 <?php
 
-use Joomla\CMS\Form\Field\SubformField;
-
 /**
  * @copyright (C) 2022 Nicholas K. Dionysopoulos
  * @license   GNU General Public License version 2 or later; see LICENSE.txt
@@ -10,7 +8,11 @@ use Joomla\CMS\Form\Field\SubformField;
  * Copyright (C) 2019 Open Source Matters, Inc. <https://www.joomla.org>
  */
 
-class JFormFieldInception extends SubformField
+namespace Joomla\Plugin\Fields\Inception\Field;
+
+use Joomla\CMS\Form\Field\SubformField;
+
+class InceptionField extends SubformField
 {
 	/**
 	 * The form field type.
@@ -23,7 +25,7 @@ class JFormFieldInception extends SubformField
 		return array_merge(
 			parent::getLayoutPaths(),
 			[
-				__DIR__ . '/../layouts'
+				__DIR__ . '/../../layouts'
 			]
 		);
 	}

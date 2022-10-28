@@ -302,7 +302,8 @@ final class InceptionPlugin extends CMSPlugin implements SubscriberInterface
 
 		$inception = $parent_field->parentNode->tagName === 'form';
 
-		$parent_field->setAttribute('addfieldpath', __DIR__ . '/fields');
+		//$parent_field->setAttribute('addfieldpath', __DIR__ . '/src/Field');
+		$parent_field->setAttribute('addfieldprefix', 'Joomla\Plugin\Fields\Inception\Field');
 
 		// Override the fieldname attribute of the subform - this is being used to index the rows
 		$parent_field->setAttribute('fieldname', 'row');
