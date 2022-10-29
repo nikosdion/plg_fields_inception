@@ -92,9 +92,9 @@ class EditLayoutField extends FormField
 				foreach ($templates as $template) {
 					$files = array();
 					$template_paths = array(
-						Path::clean(JPATH_SITE . '/templates/' . $template->element . '/html/layouts/' . $extension . '/field'),
-						Path::clean(JPATH_SITE . '/templates/' . $template->element . '/html/layouts/com_fields/field'),
-						Path::clean(JPATH_SITE . '/templates/' . $template->element . '/html/layouts/field'),
+						Path::clean(JPATH_ADMINISTRATOR . '/templates/' . $template->element . '/html/layouts/' . $extension . '/field'),
+						Path::clean(JPATH_ADMINISTRATOR . '/templates/' . $template->element . '/html/layouts/com_fields/field'),
+						Path::clean(JPATH_ADMINISTRATOR . '/templates/' . $template->element . '/html/layouts/field'),
 					);
 
 					// Add the layout options from the template paths.
