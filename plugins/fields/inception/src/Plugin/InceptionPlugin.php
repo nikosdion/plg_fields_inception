@@ -14,6 +14,7 @@ use DOMElement;
 use DOMXPath;
 use Joomla\CMS\Event\GenericEvent;
 use Joomla\CMS\Filesystem\Folder;
+use Joomla\CMS\Filesystem\Path;
 use Joomla\CMS\Form\Form;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Plugin\CMSPlugin;
@@ -329,10 +330,13 @@ final class InceptionPlugin extends CMSPlugin implements SubscriberInterface
 		$parent_fieldset->setAttribute('hidden', 'true');
 		$parent_fieldset->setAttribute('name', ($field->name . '_modal'));
 
-		$customLayout = $field->params->get('edit_layout');
+		$customLayout = $field->fieldparams->get('edit_layout');
 
 		if ($customLayout)
 		{
+			$context = $field->context ?? '';
+			[$component,] = explode('.', $context, 2);
+			$parent_field->setAttribute('_x_component', $component);
 			$parent_field->setAttribute('layout', $customLayout);
 		}
 
