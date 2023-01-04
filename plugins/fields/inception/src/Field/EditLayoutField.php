@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @copyright (C) 2022 Nicholas K. Dionysopoulos
+ * @copyright (C) 2022-2023 Nicholas K. Dionysopoulos
  * @license   GNU General Public License version 2 or later; see LICENSE.txt
  *
  * Based on Joomla's subform field plugin with the following copyright notice:

@@ -1,11 +1,10 @@
 <?php
-
 /**
- * @package     Joomla.Site
- * @subpackage  Layout
+ * @copyright (C) 2022-2023 Nicholas K. Dionysopoulos
+ * @license       GNU General Public License version 2 or later; see LICENSE.txt
  *
- * @copyright   (C) 2016 Open Source Matters, Inc. <https://www.joomla.org>
- * @license     GNU General Public License version 2 or later; see LICENSE.txt
+ * Based on Joomla's subform field plugin with the following copyright notice:
+ * Copyright (C) 2019 Open Source Matters, Inc. <https://www.joomla.org>
  */
 
 defined('_JEXEC') or die;
