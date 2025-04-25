@@ -1,3 +1,9 @@
+# This is obsolete as of Joomla! 5.2
+
+Joomla! 5.2 and later allow nested subform fields, rendering this plugin obsolete 🎉
+
+(And yes, this is a good thing! The ultimate goal of “clever hacks” plugins like this is to ultimately become obsolete thanks to a core Joomla! feature.)
+
 # <img src="./logo/spinning-top-2.svg" width="32" alt="Spinning top logo by Skoll at game-icons.net"> Inception! Form Field
 
 A custom field plugin for nested subforms in Joomla! 4 
